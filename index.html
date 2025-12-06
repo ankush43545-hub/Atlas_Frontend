@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atlas</title>
+<link href="https://cdn.jsdelivr.net/npm/remixicon/fonts/remixicon.css" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Inter', sans-serif; }
+  body { display:flex; justify-content:center; align-items:center; height:100vh; transition:0.3s; }
+  body.dark { background:#0d0d0d; color:#fff; }
+  body.light { background:#f4f4f4; color:#1a1a1a; }
+
+  .chat-wrapper {
+    width:100%;
+    max-width:650px;
+    height:650px;
+    border-radius:20px;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    background:#111;
+    position:relative;
+  }
+  body.light .chat-wrapper { background:#fff; color:#1a1a1a; }
+
+  .chat-header { padding:15px; font-size:1.5rem; font-weight:bold; }
+
+  .chat-messages {
+    flex:1;
+    padding:15px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    overflow-y:auto;
+  }
+
+  .msg {
+    max-width:80%;
+    padding:12px 16px;
+    border-radius:14px;
+    font-size:15px;
+    line-height:1.45;
+    word-wrap:break-word;
+    opacity:0;
+    transform:translateY(5px);
+    transition:0.2s ease-out;
+  }
+
+  .msg.show { opacity:1; transform:translateY(0); }
+
+  .user { align-self:flex-end; background:#1f1f1f; border-bottom-right-radius:4px; color:#fff; }
+  .bot { align-self:flex-start; background:#181818; border-bottom-left-radius:4px; color:#fff; }
+
+  .chat-input {
+    display:flex;
+    padding:10px 15px;
+    border-top:1px solid #222;
+    background:#111;
+    gap:10px;
+    align-items:center;
+  }
+  body.light .chat-input { background:#f0f0f0; border-top:1px solid #ddd; }
+
+  #userInput {
+    flex:1;
+    padding:12px 20px;
+    border-radius:25px;
+    border:none;
+    outline:none;
+    background:#1a1a1a;
+    color:#fff;
+    font-size:15px;
+    transition:0.3s;
+  }
+  body.light #userInput { background:#fff; color:#1a1a1a; }
+
+  #sendBtn {
+    width:45px;
+    height:45px;
+    border-radius:50%;
+    border:none;
+    background:#3ea6ff;
+    color:#fff;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    cursor:pointer;
+    opacity:0;
+    transform:scale(0.7);
+    transition:0.25s ease;
+  }
+  #sendBtn.show { opacity:1; transform:scale(1); }
+  #sendBtn:hover { background:#67bbff; }
+
+  .toggle-btn {
+    position:absolute;
+    top:15px;
+    right:15px;
+    background:transparent;
+    border:none;
+    cursor:pointer;
+    font-size:1.2rem;
+    color:#fff;
+  }
+  body.light .toggle-btn { color:#1a1a1a; }
+
+  .typing { display:flex; gap:5px; margin-top:5px; }
+  .dot { width:8px; height:8px; background:#3ea6ff; border-radius:50%; opacity:0.4; animation:blink 1s infinite; }
+  .dot:nth-child(2){animation-delay:0.2s;}
+  .dot:nth-child(3){animation-delay:0.4s;}
+  body.light .dot{ background:#1a1a1a; }
+  @keyframes blink {0%,100%{opacity:0.3;}50%{opacity:1;}}
+</style>
+</head>
+
+<body class="dark">
+<div class="chat-wrapper">
+  <div class="chat-header">Atlas</div>
+  <button class="toggle-btn" id="toggleMode"><i class="ri-sun-line"></i></button>
+
+  <div class="chat-messages" id="chatMessages"></div>
+
+  <div class="chat-input">
+    <input id="userInput" type="text" placeholder="Message Atlas..." />
+    <button id="sendBtn"><i class="ri-send-plane-line"></i></button>
+  </div>
+</div>
+
+<script>
+const chatMessages = document.getElementById("chatMessages");
+const userInput = document.getElementById("userInput");
+const sendBtn = document.getElementById("sendBtn");
+const toggleModeBtn = document.getElementById("toggleMode");
+const backendURL = "https://atlas-backend-roi5.onrender.com/chat";
+
+// Append message with smooth animation
+function addMessage(text, sender) {
+  const msg = document.createElement("div");
+  msg.className = `msg ${sender}`;
+  msg.innerText = text;
+  chatMessages.appendChild(msg);
+  setTimeout(()=>msg.classList.add("show"), 10);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Typing indicator
+function showTyping() {
+  const typingDiv = document.createElement("div");
+  typingDiv.className = "msg bot";
+  typingDiv.id = "typing";
+  typingDiv.innerHTML = `<div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+  chatMessages.appendChild(typingDiv);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function removeTyping() {
+  const t = document.getElementById("typing");
+  if(t) t.remove();
+}
+
+// Smooth word-by-word bot reply
+async function botReply(userMessage) {
+  showTyping();
+  try {
+    const res = await fetch(backendURL,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({message:userMessage})
+    });
+    const data = await res.json();
+    const botText = data.reply || "Atlas is confused…";
+
+    removeTyping();
+
+    const words = botText.split(" ");
+    const msg = document.createElement("div");
+    msg.className = "msg bot";
+    chatMessages.appendChild(msg);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    let i=0;
+    function typeWord() {
+      if(i<words.length){
+        msg.innerText = words.slice(0,i+1).join(" ");
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        i++;
+        setTimeout(typeWord, 180); // smooth timing
+      }
+    }
+    typeWord();
+
+  } catch(err){
+    removeTyping();
+    addMessage("Connection error.", "bot");
+    console.error(err);
+  }
+}
+
+// Send message
+function handleSend(){
+  const text = userInput.value.trim();
+  if(!text) return;
+  addMessage(text,"user");
+  userInput.value="";
+  sendBtn.classList.remove("show");
+  botReply(text);
+}
+
+// Event listeners
+sendBtn.addEventListener("click", handleSend);
+userInput.addEventListener("keypress", e=>{ if(e.key==="Enter") handleSend(); });
+userInput.addEventListener("input", ()=>{
+  if(userInput.value.trim()) sendBtn.classList.add("show");
+  else sendBtn.classList.remove("show");
+});
+toggleModeBtn.addEventListener("click", ()=>{
+  document.body.classList.toggle("dark");
+  document.body.classList.toggle("light");
+});
+</script>
+</body>
+</html>
