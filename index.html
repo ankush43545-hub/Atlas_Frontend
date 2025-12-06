@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Atlas</title>
+
+<style>
+  /* Base Reset */
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    background: #0c0c0c;
+    font-family: "Inter", sans-serif;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* Main Layout */
+  .chat-container {
+    width: 100%;
+    max-width: 650px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: rgba(15, 15, 15, 0.85);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  /* Header */
+  .header {
+    padding: 16px;
+    text-align: center;
+    font-size: 22px;
+    font-weight: 600;
+    color: white;
+    letter-spacing: 1px;
+
+    background: linear-gradient(to right, #101010, #0d0d0d);
+    border-bottom: 1px solid #222;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.4);
+  }
+
+  /* Chat Box */
+  #chat-box {
+    flex: 1;
+    padding: 22px 18px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scroll-behavior: smooth;
+  }
+
+  /* Messages */
+  .msg {
+    max-width: 85%;
+    padding: 14px 18px;
+    font-size: 15.5px;
+    line-height: 1.55;
+    border-radius: 14px;
+    animation: fadeIn 0.25s ease-out;
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .user {
+    align-self: flex-end;
+    background: rgba(40, 40, 40, 0.6);
+    border-bottom-right-radius: 4px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+  }
+
+  .bot {
+    align-self: flex-start;
+    background: rgba(22, 22, 22, 0.6);
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+  }
+
+  /* Typing bubble */
+  .typing {
+    display: flex;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    background: #3ea6ff;
+    border-radius: 50%;
+    animation: blink 1s infinite;
+    opacity: 0.4;
+  }
+
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes blink {
+    0%, 100% { opacity: 0.3; transform: translateY(0); }
+    50% { opacity: 1; transform: translateY(-2px); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Input Area */
+  .input-wrapper {
+    padding: 16px;
+    background: rgba(15, 15, 15, 0.85);
+    border-top: 1px solid #222;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  #user-input {
+    flex: 1;
+    padding: 14px 16px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    color: #fff;
+    font-size: 16px;
+    border-radius: 14px;
+    outline: none;
+  }
+
+  /* Floating Send Button */
+  #send-btn {
+    padding: 12px 18px;
+    background: #3ea6ff;
+    border: none;
+    border-radius: 12px;
+    color: black;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    transition: 0.2s ease;
+    box-shadow: 0px 3px 12px rgba(0,123,255,0.3);
+  }
+
+  #send-btn:hover {
+    background: #67bbff;
+  }
+
+  /* Scrollbar */
+  #chat-box::-webkit-scrollbar {
+    width: 6px;
+  }
+  #chat-box::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 3px;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="chat-container">
+  <div class="header">Atlas</div>
+
+  <div id="chat-box"></div>
+
+  <div class="input-wrapper">
+    <input id="user-input" type="text" placeholder="Message Atlas..." />
+    <button id="send-btn">Send</button>
+  </div>
+</div>
+
+
+<script>
+const chatBox = document.getElementById("chat-box");
+const input = document.getElementById("user-input");
+const sendBtn = document.getElementById("send-btn");
+
+const backendURL = "https://atlas-backend-roi5.onrender.com/chat";
+
+/* Streaming Effect */
+function streamText(element, text) {
+  let i = 0;
+  function typing() {
+    if (i < text.length) {
+      element.innerHTML += text.charAt(i);
+      i++;
+      chatBox.scrollTop = chatBox.scrollHeight;
+      setTimeout(typing, 22); // Adjust typing speed here
+    }
+  }
+  typing();
+}
+
+function addBubble(text, sender, stream = false) {
+  const msg = document.createElement("div");
+  msg.className = `msg ${sender}`;
+
+  if (!stream) msg.innerText = text;
+
+  chatBox.appendChild(msg);
+  chatBox.scrollTop = chatBox.scrollHeight;
+
+  return msg;
+}
+
+/* Typing Indicator */
+function showTyping() {
+  const wrap = document.createElement("div");
+  wrap.className = "msg bot";
+  wrap.id = "typing";
+
+  wrap.innerHTML = `
+    <div class="typing">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+  `;
+
+  chatBox.appendChild(wrap);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function removeTyping() {
+  const t = document.getElementById("typing");
+  if (t) t.remove();
+}
+
+/* Send Message */
+async function sendMessage() {
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  addBubble(msg, "user");
+  input.value = "";
+
+  showTyping();
+
+  try {
+    const res = await fetch(backendURL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: msg })
+    });
+
+    const data = await res.json();
+    removeTyping();
+
+    const botBubble = addBubble("", "bot", true);
+    streamText(botBubble, data.reply || "Atlas didn't understand…");
+
+  } catch (err) {
+    removeTyping();
+    addBubble("Connection error.", "bot");
+  }
+}
+
+/* Event Listeners */
+sendBtn.addEventListener("click", sendMessage);
+input.addEventListener("keypress", e => {
+  if (e.key === "Enter") sendMessage();
+});
+</script>
+
+</body>
+</html>
